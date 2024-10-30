@@ -16,6 +16,9 @@ inputs:
     required: true
     default: ${{ github.token }}
     description: A token that can be used with the GitHub API.
+  github-api-url:
+    required: false
+    description: Base URL to the GitHub API - if you have an enterprise instance.
   job-as-parent:
     required: false
     default: false

@@ -67,6 +67,19 @@ func (t TextMapCarrier) Keys() []string {
 	return keys
 }
 
+func githubClient(token string) (*github.Client, error) {
+	var client *github.Client
+	var err error
+	client = github.NewClient(nil).WithAuthToken(token)
+	if githubactions.GetInput("github-api-url") != "" {
+		client, err = github.NewClient(nil).WithAuthToken(token).WithEnterpriseURLs(githubactions.GetInput("github-api-url"), "")
+		if err != nil {
+			return nil, err
+		}
+	}
+	return client, nil
+}
+
 func createEventAttributes(baseAttributes []trace.EventOption, stdout, stderr string) []trace.EventOption {
 	if len(stdout) > 0 {
 		baseAttributes = append(baseAttributes, trace.WithAttributes(attribute.String("stdout", stdout)))
@@ -254,14 +267,17 @@ func getGitHubJobName(ctx context.Context, token, owner, repo string, runID, att
 	owner, repo = splitRepo[0], splitRepo[1]
 	githubactions.Infof("Parsed GitHub repository owner: %s, repo: %s", owner, repo)
 
-	client := github.NewClient(nil).WithAuthToken(token)
+	var err error
+	client, err := githubClient(token)
+	if err != nil {
+		return "", fmt.Errorf("failed to create GitHub client: %v", err)
+	}
 	opts := &github.ListWorkflowJobsOptions{
 		ListOptions: github.ListOptions{PerPage: 100},
 	}
 
 	var runJobs *github.Jobs
 	var resp *github.Response
-	var err error
 	var attempts int = 3 // Number of attempts for retrying API call
 
 	for i := 0; i < attempts; i++ {
